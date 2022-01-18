@@ -3,7 +3,7 @@ import re
 
 base =   "abcdefghijklmnopqrstuvwxyz "
 cypher = "__________________________ "
-revertToIndex = -1
+checks = 0
 
 def testWord(cypher, puzzle):
     return "".join([cypher[base.index(c)] for c in puzzle])
@@ -34,8 +34,14 @@ for key in wordDict.keys():
 print("> Loading Puzzle")
 #Load Puzzle
 puzzle = ""
-with open('puzzle.txt', 'r') as f:
-    puzzle = f.read().splitlines()[0]
+solution = ""
+hasSolution = False
+with open('puzzle2.txt', 'r') as f:
+    lines = f.read().splitlines()
+    puzzle = lines[0]
+    if len(lines) > 1:
+        solution = lines[1]
+        hasSolution = True
 
 for char in puzzle:
     if char.isupper():
@@ -43,25 +49,58 @@ for char in puzzle:
             base += (char)
             cypher += (char.lower())
 
+def getWordIndex(outputWords, wordIndex):
+    # Next unsolved word
+    # return wordIndex
+
+    # Smallest unsolved word
+    # s = sorted(outputWords, key=len)
+    # for i in range(len(s)):
+    #     if "_" in s[i]:
+    #         return outputWords.index(s[i])
+
+    # Largest unsolved word
+    # s = sorted(outputWords, key=len)
+    # for i in range(len(s)):
+    #     if "_" in s[0-(i+1)]:
+    #         return outputWords.index(s[0-(i+1)])
+
+    # Word with fewest _ in it
+    count = 1000
+    index = 0
+    for i in range(len(outputWords)):
+        if '_' in outputWords[i]:
+            if outputWords[i].count('_') < count:
+                count = outputWords[i].count('_')
+                index = i
+    return index
+
 def Solve(cypher, puzzle, wordIndex=0):
-    global revertToIndex
+    global checks
+    checks += 1
+
+    output = testWord(cypher, puzzle)
 
     puzzleWords = puzzle.split(" ")
-    finalWords = testWord(cypher, puzzle).split(" ")
+    finalWords = output.split(" ")
 
-    if wordIndex == len(puzzleWords):
-        print("\n" + " ".join(finalWords))
-        goOn = input("Keep Looking [Y/n]: ")
-        if goOn.lower() == "n":
-            return True
+    print(output)
+
+    if wordIndex == len(puzzleWords) or "_" not in output:
+        if hasSolution:
+            return output == solution
         else:
-            print(" ".join([finalWords[i] + "(" + str(i) + ")" for i in range(len(finalWords))]))
-            revertToIndex = int(input("Which word is incorrect? "))
-            return False
+            print("\n" + output)
+            goOn = input("Keep Looking [Y/n]: ")
+            if goOn.lower() == "n":
+                return True
+            else:
+                return False
     
-    missingWord = puzzleWords[wordIndex]
+    index = getWordIndex(finalWords, wordIndex)
+    missingWord = puzzleWords[index]
+    finalWord = finalWords[index]
     wordLength = len(missingWord)
-    finalWord = finalWords[wordIndex]
 
     # Make sure letters don't map to themselves
     for i in range(len(cypher)):
@@ -69,14 +108,14 @@ def Solve(cypher, puzzle, wordIndex=0):
             return False
 
     # Make sure all complete words are words, and all incomplete can be words
-    for word in finalWords[wordIndex:]:
+    for word in finalWords:
         if "_" not in word:
             if word in wordDict[len(word)]:
                 continue
             else:
                 return False
 
-    for word in finalWords[wordIndex:]:
+    for word in finalWords:
         _count = word.count("_")
         if _count > 0 and _count < len(word):
             incompleteRegex = re.compile(word.replace("_", "."))
@@ -104,23 +143,17 @@ def Solve(cypher, puzzle, wordIndex=0):
             char = possibleWord[i]
             cypherIndex = base.index(missingWord[i])
             newCypher[cypherIndex] = char
+
+            #Make sure all mappings are 1 to 1
             if newCypher.count(char) > 1:
-                # Theres too many items for this
                 break
         else:
             newCypher = "".join(newCypher)
 
-            # print(testWord(newCypher, puzzle))
-
             # Next word
             if Solve(newCypher, puzzle, wordIndex+1):
                 return True
-            else:
-                if revertToIndex != -1:
-                    if wordIndex != revertToIndex:
-                        return False
-                    else:
-                        revertToIndex = -1
 
 print("> Solving Puzzle")
 Solve(cypher, puzzle)
+print(checks)
